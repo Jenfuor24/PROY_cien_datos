@@ -29,7 +29,7 @@ st.header('Propuesto por Jenny Fuquen ')
 
 # @st.cache
 def get_data():
-     url = 'https://raw.githubusercontent.com/sebmatecho/CienciaDeDatos/master/ProyectoPreciosCasas/data/kc_house_data.csv'
+     url = 'https://raw.githubusercontent.com/Jenfuor24/PROY_cien_datos/main/ProyectoPreciosCasas/data/kc_house_data.csv'
      return pd.read_csv(url)
 
 data = get_data()
