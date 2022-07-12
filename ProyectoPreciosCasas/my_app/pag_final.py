@@ -31,6 +31,36 @@ st.header('Propuesto por Jenny Fuquen ')
 def get_data():
      url = 'https://raw.githubusercontent.com/Jenfuor24/PROY_cien_datos/main/ProyectoPreciosCasas/data/kc_house_data.csv'
      return pd.read_csv(url)
+    
+data = get_data()
+data_ref = data.copy()
+
+st.sidebar.markdown("# Parámetros")
+data['date'] = pd.to_datetime(data['date'], format = '%Y-%m-%d').dt.date
+data['yr_built']= pd.to_datetime(data['yr_built'], format = '%Y').dt.year
+# data['yr_renovated'] = data['yr_renovated'].apply(lambda x: pd.to_datetime(x, format ='%Y') if x >0 else x )
+# data['id'] = data['id'].astype(str)
+
+#llenar la columna anterior con new_house para fechas anteriores a 2015-01-01
+data['house_age'] = 'NA'
+#llenar la columna anterior con new_house para fechas anteriores a 2015-01-01
+data.loc[data['yr_built']>1990,'house_age'] = 'new_house' 
+#llenar la columna anterior con old_house para fechas anteriores a 2015-01-01
+data.loc[data['yr_built']<1990,'house_age'] = 'old_house'
+
+data['zipcode'] = data['zipcode'].astype(str)
+
+
+data.loc[data['yr_built']>=1990,'house_age'] = 'new_house' 
+data.loc[data['yr_built']<1990,'house_age'] = 'old_house'
+
+data.loc[data['bedrooms']<=1, 'dormitory_type'] = 'studio'
+data.loc[data['bedrooms']==2, 'dormitory_type'] = 'apartment'
+data.loc[data['bedrooms']>2, 'dormitory_type'] = 'house'
+
+data.loc[data['condition']<=2, 'condition_type'] = 'bad'
+data.loc[data['condition'].isin([3,4]), 'condition_type'] = 'regular'
+data.loc[data['condition']== 5, 'condition_type'] = 'good'
 
 data = get_data()
 datta = data.copy()
