@@ -35,8 +35,11 @@ def get_data():
 data = get_data()
 data_ref = data.copy()
 
-
-
+st.sidebar.markdown("# Parámetros")
+data['date'] = pd.to_datetime(data['date'], format = '%Y-%m-%d').dt.date
+data['yr_built']= pd.to_datetime(data['yr_built'], format = '%Y').dt.year
+# data['yr_renovated'] = data['yr_renovated'].apply(lambda x: pd.to_datetime(x, format ='%Y') if x >0 else x )
+# data['id'] = data['id'].astype(str)
 
 #llenar la columna anterior con new_house para fechas anteriores a 2015-01-01
 data['house_age'] = 'NA'
@@ -59,115 +62,254 @@ data.loc[data['condition']<=2, 'condition_type'] = 'bad'
 data.loc[data['condition'].isin([3,4]), 'condition_type'] = 'regular'
 data.loc[data['condition']== 5, 'condition_type'] = 'good'
 
-st.sidebar.markdown("# Parámetros")
-data = get_data()
-datta = data.copy()
-datta['price/sqft'] = datta['price']/datta['sqft_living']
-datta['year_old'] = 2020-datta['yr_built']
-datta = datta.drop(columns=['price'])
+data['price_tier'] = data['price'].apply(lambda x: 'Primer cuartil' if x <= 321950 else
+                                                   'Segundo cuartil' if (x > 321950) & (x <= 450000) else
+                                                   'Tercer cuartil' if (x > 450000) & (x <= 645000) else
+                                                   'Cuarto cuartil')
 
-banhos = st.sidebar.number_input('Número de baños', min_value=0, max_value=6, value=1, step=1)
+data['price/sqft'] = data['price']/data['sqft_living']
 
-### habitaciones info
-habitaciones = st.sidebar.number_input('Número de habitaciones', min_value=1, max_value=7, value=1, step=1)
-
-### area total construida
-area = st.sidebar.number_input('Area total del inmueble', min_value=1, max_value=3500, value=1, step=10)
-
-### area de terreno
-area_lote = st.sidebar.number_input('Area del terreno', min_value=1, max_value=5000, value=1, step=1)
-
-### area de la sala
-area_sala = st.sidebar.number_input('Area de la sala', min_value=1, max_value=3500, value=1, step=1)
-
-### pisos info
-pisos = st.sidebar.number_input('Pisos', min_value=1, max_value=3, value=1, step=1)
-
-
-### asiganacion de valores del vector
-X = pd.DataFrame()
-
-X.loc[0,'bedrooms'] = habitaciones
-X.loc[0,'bathrooms'] = banhos
-X.loc[0,'sqft_above'] = area
-X.loc[0,'sqft_lot'] = area_lote
-X.loc[0,'sqft_living'] = area_sala
-X.loc[0,'floors'] = pisos
+# st.dataframe(data)
+st.write('Este dashboard tiene por objevito presentar rápida y fácilmente la información derivada del estudio de la dinámica inmobiliaria en King Count, WA (USA). Los datos están disponibles [aquí](https://www.kaggle.com/datasets/harlfoxem/housesalesprediction) ')
 
 
 
-### informacion por pantalla
+## Filtros
+st.subheader('Filtros Requeridos')
+# construccion = st.slider('Construcción después de:', int(data['yr_built'].min()),int(data['yr_built'].max()),1991)
+
+
 st.markdown("""
-En esta seccion, un modelo de Machine Learning ha sido disponibilizado para generar pronósticos de precios que se basa en las caracteristicas del inmueble. El usuario debe suministrar las características de su interes utilizando el menú de la barra izquierda. A continuación se definen la información que se requiere:
-     
-- Número de baños: Número de baños de la propiedad a sugerir precio. 
-- Número de habitaciones: Número de habitaciones de la propiedad a sugerir precio
-- Área del inmueble: Área en pies cuadrados total de la propiedad a sugerir precio. Desde 3000 metros cuadrados
-- Área del terreno: Área en pies cuadrados del terreno a sugerir precio. Desde 3000 pies cuadrados
-- Area de la sala: Area en pies cuadrados de la sala a sugerir precio. Desde 1000 pies cuadrados
-- Número de pisos: Número de pisos de la propiedad a sugerir precio.
+Las casas han sido divididas en cuatro grupos de igual tañamo, basadas en su precio. 
+-  El Primer Cuartil contendrá información de las propiedades que cuestan menos de \$321.950 
+-  El Segundo Cuartil contendrá información de las propiedades que cuestan entre \$321.950 y \$450.000
+-  El Tercer Cuartil contendrá información de las propiedades que cuestan entre \$450.000 y \$645.000
+-  El Cuarto Cuartil contendrá información de las propiedades que cuestan más de \$645.000
+    """)
+tier = st.multiselect(
+     'Cuartil de precios',
+    list(data['price_tier'].unique()),
+     list(data['price_tier'].unique()))
+
+
+st.markdown("""
+El código postal puede utilizarse como proxy para lo localización de un inmueble en King County. Por favor, consulte [aquí](https://www.zipdatamaps.com/king-wa-county-zipcodes) para más información. 
     """)
 
-variables = ['bedrooms', 'bathrooms', 'sqft_living','floors',
-             'sqft_above', 'sqft_basement'
-             ]
+zipcod = st.multiselect(
+     'Códigos postales',
+      list(sorted(set(data['zipcode']))),
+      list(sorted(set(data['zipcode']))))
+data = data[(data['price_tier'].isin(tier))&(data['zipcode'].isin(zipcod))]
+st.subheader('Filtros adicionales (Opcionales)')
 
-params = {'Habitaciones':['bedrooms', habitaciones],
-          'Baños':['bathrooms', banhos],
-          'Pisos':['floors', pisos],
-          'Area de sala': ['sqft_living',area_sala],
-          'Area terreno': ['sqft_basement', area_lote],
-          'Area': ['sqft_above',area]
-         
-         }
 
 OptFiltro = st.multiselect(
      'Variables a incluir en los filtros:',
-     ['Habitaciones', 'Baños', 'Pisos','Area de sala','Area terreno','Area'],
-     ['Baños'])
+     ['Habitaciones', 'Baños', 'Área construida (pies cuadrados)','Pisos','Vista al agua','Evaluación de la propiedad','Condición'],
+     ['Habitaciones', 'Baños'])
 
+
+if 'Habitaciones' in OptFiltro: 
+     if data['bedrooms'].min() < data['bedrooms'].max():
+          min_habs, max_habs = st.sidebar.select_slider(
+          'Número de Habitaciones',
+          options=list(sorted(set(data['bedrooms']))),
+          value=(data['bedrooms'].min(),data['bedrooms'].max()))
+          data = data[(data['bedrooms']>= min_habs)&(data['bedrooms']<= max_habs)]
+     else:
+          st.markdown("""
+               El filtro **Habitaciones** no es aplicable para la selección actual de valores
+               """)
+if 'Baños' in OptFiltro: 
+     if data['bathrooms'].min() < data['bathrooms'].max():
+          min_banhos, max_banhos = st.sidebar.select_slider(
+          'Número de baños ',
+          options=list(sorted(set(data['bathrooms']))),
+          value=(data['bathrooms'].min(), data['bathrooms'].max()))
+          data = data[(data['bathrooms']>= min_banhos)&(data['bathrooms']<= max_banhos)]
+     else:
+          st.markdown("""
+               El filtro **Baños** no es aplicable para la selección actual de valores
+               """)
+if 'Área construida (pies cuadrados)' in OptFiltro: 
+     if data['sqft_living'].min() < data['sqft_living'].max():
+          area = st.sidebar.slider('Área construida menor a', int(data['sqft_living'].min()),int(data['sqft_living'].max()),2000)
+          data = data[data['sqft_living']<area]
+     else:  
+          st.markdown("""
+               El filtro **Área construida (pies cuadrados)** no es aplicable para la selección actual de valores
+               """)
+
+if 'Pisos' in OptFiltro: 
+     if data['floors'].min() < data['floors'].max():
+          min_pisos, max_pisos = st.sidebar.select_slider(
+          'Número de Pisos',
+          options=list(sorted(set(data['floors']))),
+          value=(data['floors'].min(),data['floors'].max()))
+          data = data[(data['floors']>= min_pisos)&(data['floors']<= max_pisos)]
+     else:
+          st.markdown("""
+               El filtro **Pisos** no es aplicable para la selección actual de valores
+               """)
+
+if 'Vista al agua' in OptFiltro: 
+     if data['view'].min() < data['view'].max():
+          min_vista, max_vista = st.sidebar.select_slider(
+          'Puntaje de vista al agua',
+          options=list(sorted(set(data['view']))),
+          value=(data['view'].min(),data['view'].max()))
+          data = data[(data['view']>= min_vista)&(data['view']<= max_vista)]
+     else:
+          st.markdown("""
+               El filtro **Vista al agua** no es aplicable para la selección actual de valores
+               """)
+if 'Evaluación de la propiedad' in OptFiltro:
+     if data['grade'].min() < data['grade'].max():
+          min_cond, max_cond = st.sidebar.select_slider(
+          'Índice de evaluación de la propiedad',
+          options=list(sorted(set(data['grade']))),
+          value=(data['grade'].min(),data['grade'].max()))
+          data = data[(data['grade']>= min_cond)&(data['grade']<= max_cond)]
+     else:
+          st.markdown("""
+               El filtro **Evaluación de la propiedad** no es aplicable para la selección actual de valores
+               """)
+
+if 'Condición' in OptFiltro:
+     if data['condition'].min() < data['condition'].max():
+          min_condi, max_condi = st.sidebar.select_slider(
+          'Condición de la propiedad',
+          options=list(sorted(set(data['condition']))),
+          value=(data['condition'].min(),data['condition'].max()))
+          data = data[(data['condition']>= min_condi)&(data['condition']<= max_condi)]
+     else:
+          st.markdown("""
+               El filtro **Condición** no es aplicable para la selección actual de valores
+               """)
+
+# Mapas 
+
+# info geojson
+url2 = 'https://raw.githubusercontent.com/sebmatecho/CienciaDeDatos/master/ProyectoPreciosCasas/data/KingCount.geojson'
+col1, col2 = st.columns(2)
+with col1:
+     st.header("Densidad de casas disponibles por código postal")
+     data_aux = data[['id','zipcode']].groupby('zipcode').count().reset_index()
+     custom_scale = (data_aux['id'].quantile((0,0.2,0.4,0.6,0.8,1))).tolist()
+
+     mapa = folium.Map(location=[data['lat'].mean(), data['long'].mean()], zoom_start=8)
+     folium.Choropleth(geo_data=url2, 
+                    data=data_aux,
+                    key_on='feature.properties.ZIPCODE',
+                    columns=['zipcode', 'id'],
+                    threshold_scale=custom_scale,
+                    fill_color='YlOrRd',
+                    highlight=True).add_to(mapa)
+     folium_static(mapa)
+
+with col2: 
+     st.header("Precios de casas disponibles por código postal")
+     data_aux = data[['price','zipcode']].groupby('zipcode').mean().reset_index()
+     custom_scale = (data_aux['price'].quantile((0,0.2,0.4,0.6,0.8,1))).tolist()
+
+     mapa = folium.Map(location=[data['lat'].mean(), data['long'].mean()], zoom_start=8)
+     folium.Choropleth(geo_data=url2, 
+                    data=data_aux,
+                    key_on='feature.properties.ZIPCODE',
+                    columns=['zipcode', 'price'],
+                    threshold_scale=custom_scale,
+                    fill_color='YlOrRd',
+                    highlight=True).add_to(mapa)
+     folium_static(mapa)
 
 
 col1, col2 = st.columns(2)
-
 with col1:
+     st.header("Costo de pie cuadrado por código postal")
+     data_aux = data[['price/sqft','zipcode']].groupby('zipcode').mean().reset_index()
+     custom_scale = (data_aux['price/sqft'].quantile((0,0.2,0.4,0.6,0.8,1))).tolist()
 
-    data_v2 = datta.copy()
-    for filtro in OptFiltro:
-        (llave, variable) = params[filtro]
-        data_v2 = data_v2[data_v2[llave]==variable]
+     mapa = folium.Map(location=[data['lat'].mean(), data['long'].mean()], zoom_start=8)
+     folium.Choropleth(geo_data=url2, 
+                    data=data_aux,
+                    key_on='feature.properties.ZIPCODE',
+                    columns=['zipcode', 'price/sqft'],
+                    threshold_scale=custom_scale,
+                    fill_color='YlOrRd',
+                    highlight=True).add_to(mapa)
+     folium_static(mapa)
 
-    data_v2['zipcode'] = data_v2['zipcode'].astype(str)
-
-    st.header("Ubicación y detalles de casas disponibles acorde a los requerimientos del cliente.")
-    mapa = folium.Map(location=[data_v2['lat'].mean(), data_v2['long'].mean()], zoom_start=9)
-    markercluster = MarkerCluster().add_to(mapa)
-    for nombre, fila in data_v2.iterrows():
-        folium.Marker([fila['lat'],fila['long']],
-                         popup = 'Fecha: {} \n {} habitaciones \n {} baños \n construida en {} \n área de {} pies cuadrados \n Precio por pie cuadrado: {}'.format(
+with col2: 
+     st.header("Ubicación y detalles de casas disponibles")
+     mapa = folium.Map(location=[data['lat'].mean(), data['long'].mean()], zoom_start=9)
+     markercluster = MarkerCluster().add_to(mapa)
+     for nombre, fila in data.iterrows():
+          folium.Marker([fila['lat'],fila['long']],
+                         popup = 'Precio: ${}, \n Fecha: {} \n {} habitaciones \n {} baños \n constuida en {} \n área de {} pies cuadrados \n Precio por pie cuadrado: {}'.format(
+                         fila['price'],
                          fila['date'],
                          fila['bedrooms'],
                          fila['bathrooms'],
                          fila['yr_built'], 
                          fila['sqft_living'], 
-                         fila['sqft_above'])
+                         fila['price/sqft'])
           ).add_to(markercluster)
-    folium_static(mapa)
+     folium_static(mapa)
 
-### se carga el model xgboost para la estimacion del valor de la casa
-### se muestra por panatalla
-if st.sidebar.button('Los parámetros han sido cargados. Calcular precio'):
 
-    modelo_final = pickle.load(open('../xbg_final.sav', 'rb'))
-    vector = np.array(list(X.loc[0])).reshape(-1, 1).T
-    precio = modelo_final.predict(vector)[0]
-    st.balloons()
-    st.success('El precio ha sido calculado')
-    st.metric("Precio Estimado:", f"${np.float(round(precio, 1))}")
+# Estadística Descriptiva 
+att_num = data.select_dtypes(include = ['int64','float64'])
+media = pd.DataFrame(att_num.apply(np.mean))
+mediana = pd.DataFrame(att_num.apply(np.median))
+std = pd.DataFrame(att_num.apply(np.std))
+maximo = pd.DataFrame(att_num.apply(np.max))
+minimo = pd.DataFrame(att_num.apply(np.min))
+df_EDA = pd.concat([minimo,media,mediana,maximo,std], axis = 1)
+df_EDA.columns = ['Mínimo','Media','Mediana','Máximo','std']
+st.header('Datos descriptivos')
+df_EDA = df_EDA.drop(index =['id', 'lat', 'long','yr_built','yr_renovated'], axis = 0 )
 
-    st.header(f"Un total de {data_v2.shape[0]} casas coinciden con las caracteristicas requeridas por el usuario.")
-    st.dataframe(data_v2)  
+df_EDA.index =['Precio','No. Cuartos', 'No. Baños', 'Área construida (pies cuadrados)', 
+                    'Área del terreno (pies cuadrados)', 'No. pisos', 'Vista agua (dummy)',
+                    'Puntaje de la vista', 'Condición','Evaluación propiedad (1-13)',
+                    'Área sobre tierra', 'Área sótano', 'Área construída 15 casas más próximas', 
+                    'Área del terreno 15 casas más próximas', 'Precio por pie cuadrado']
+col1, col2 = st.columns(2)
+col1.metric("No. Casas", data.shape[0],str(100*round(data.shape[0]/data_ref.shape[0],4))+'% de las casas disponibles',delta_color="off")
+col2.metric("No. Casas Nuevas (Construida después de 1990)",data[data['house_age'] == 'new_house'].shape[0],str(100*round(data[data['house_age'] == 'new_house'].shape[0]/data_ref.shape[0],4))+'% de las casas disponibles',delta_color="off")
+st.dataframe(df_EDA)  
 
-else:
-    st.snow()
-    st.error('Por favor, seleccione los parámatros de la propiedad a estimar el precio.')
+st.header('Algunas tendencias')
+
+
+col1, col2 = st.columns(2)
+with col1: 
+     st.write('Evolución del precio por tipo de propiedad y año de construcción')
+     data['dormitory_type']=data['bedrooms'].apply(lambda x: 'Estudio' if x <=1 else 'Apartamento' if x==2 else 'Casa' )
+     df = data[['yr_built', 'price','dormitory_type']].groupby(['yr_built','dormitory_type']).mean().reset_index()
+     with sns.axes_style("darkgrid"):
+          plt.style.use('dark_background')
+          fig = plt.figure(figsize=(7,7)) # try different values
+          fig = sns.lineplot(x ='yr_built', y= 'price', data = df, hue="dormitory_type", style="dormitory_type")
+          fig.set_xlabel("Año de Construcción", fontsize = 17)
+          fig.set_ylabel("Precio (Millones de Dólares)", fontsize = 17)
+          fig.legend(title='Tipo de propiedad', loc='upper right', labels=['Apartamento', 'Casa','Estudio'])
+          fig = fig.figure
+          st.pyplot(fig)
+
+
+with col2: 
+     st.write('Evolución del precio por pie cuadrado por tipo de propiedad y año de construcción')
+     df = data[['yr_built', 'price/sqft','dormitory_type']].groupby(['yr_built','dormitory_type']).mean().reset_index()
+     with sns.axes_style("darkgrid"):
+          plt.style.use('dark_background')
+          fig = plt.figure(figsize=(7,7)) # try different values
+          fig = sns.lineplot(x ='yr_built', y= 'price/sqft', data = df, hue="dormitory_type", style="dormitory_type")
+          fig.set_xlabel("Año de Construcción", fontsize = 17)
+          fig.set_ylabel("Precio por pie cuadrado (Dólares)", fontsize = 17)
+          fig.legend(title='Tipo de propiedad', loc='upper right', labels=['Apartamento', 'Casa','Estudio'])
+          fig = fig.figure
+          st.pyplot(fig)
+
+
