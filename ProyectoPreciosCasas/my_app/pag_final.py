@@ -17,7 +17,7 @@ from distutils.fancy_getopt   import OptionDummy
 
 st.set_page_config(page_title='Venta de casas',
                     layout="wide", 
-                    page_icon=':house',  
+                    page_icon='🌏',  
                     initial_sidebar_state="expanded")
 
 
