@@ -35,11 +35,8 @@ def get_data():
 data = get_data()
 data_ref = data.copy()
 
-st.sidebar.markdown("# Parámetros")
-data['date'] = pd.to_datetime(data['date'], format = '%Y-%m-%d').dt.date
-data['yr_built']= pd.to_datetime(data['yr_built'], format = '%Y').dt.year
-# data['yr_renovated'] = data['yr_renovated'].apply(lambda x: pd.to_datetime(x, format ='%Y') if x >0 else x )
-# data['id'] = data['id'].astype(str)
+
+
 
 #llenar la columna anterior con new_house para fechas anteriores a 2015-01-01
 data['house_age'] = 'NA'
@@ -62,6 +59,7 @@ data.loc[data['condition']<=2, 'condition_type'] = 'bad'
 data.loc[data['condition'].isin([3,4]), 'condition_type'] = 'regular'
 data.loc[data['condition']== 5, 'condition_type'] = 'good'
 
+st.sidebar.markdown("# Parámetros")
 data = get_data()
 datta = data.copy()
 datta['price/sqft'] = datta['price']/datta['sqft_living']
