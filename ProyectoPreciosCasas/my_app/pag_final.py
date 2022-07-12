@@ -192,10 +192,16 @@ if 'Condición' in OptFiltro:
 # Mapas 
 
 # info geojson
-url2 = 'https://raw.githubusercontent.com/sebmatecho/CienciaDeDatos/master/ProyectoPreciosCasas/data/KingCount.geojson'
+url2 = 'https://raw.githubusercontent.com/LORDINGBC/ciencia-datos/main/ProyectoPreciosCasas/data/KingCount.geojson'
 col1, col2 = st.columns(2)
 with col1:
      st.header("Densidad de casas disponibles por código postal")
+     
+     st.markdown("""
+     Puede filtrar por un solo codigo postal y en la parte inferior del mapa le saldra informacion de este lugar. 
+      """)
+
+
      data_aux = data[['id','zipcode']].groupby('zipcode').count().reset_index()
      custom_scale = (data_aux['id'].quantile((0,0.2,0.4,0.6,0.8,1))).tolist()
 
@@ -209,54 +215,11 @@ with col1:
                     highlight=True).add_to(mapa)
      folium_static(mapa)
 
-with col2: 
-     st.header("Precios de casas disponibles por código postal")
-     data_aux = data[['price','zipcode']].groupby('zipcode').mean().reset_index()
-     custom_scale = (data_aux['price'].quantile((0,0.2,0.4,0.6,0.8,1))).tolist()
+     
 
-     mapa = folium.Map(location=[data['lat'].mean(), data['long'].mean()], zoom_start=8)
-     folium.Choropleth(geo_data=url2, 
-                    data=data_aux,
-                    key_on='feature.properties.ZIPCODE',
-                    columns=['zipcode', 'price'],
-                    threshold_scale=custom_scale,
-                    fill_color='YlOrRd',
-                    highlight=True).add_to(mapa)
-     folium_static(mapa)
-
-
-col1, col2 = st.columns(2)
-with col1:
-     st.header("Costo de pie cuadrado por código postal")
-     data_aux = data[['price/sqft','zipcode']].groupby('zipcode').mean().reset_index()
-     custom_scale = (data_aux['price/sqft'].quantile((0,0.2,0.4,0.6,0.8,1))).tolist()
-
-     mapa = folium.Map(location=[data['lat'].mean(), data['long'].mean()], zoom_start=8)
-     folium.Choropleth(geo_data=url2, 
-                    data=data_aux,
-                    key_on='feature.properties.ZIPCODE',
-                    columns=['zipcode', 'price/sqft'],
-                    threshold_scale=custom_scale,
-                    fill_color='YlOrRd',
-                    highlight=True).add_to(mapa)
-     folium_static(mapa)
-
-with col2: 
-     st.header("Ubicación y detalles de casas disponibles")
-     mapa = folium.Map(location=[data['lat'].mean(), data['long'].mean()], zoom_start=9)
-     markercluster = MarkerCluster().add_to(mapa)
-     for nombre, fila in data.iterrows():
-          folium.Marker([fila['lat'],fila['long']],
-                         popup = 'Precio: ${}, \n Fecha: {} \n {} habitaciones \n {} baños \n constuida en {} \n área de {} pies cuadrados \n Precio por pie cuadrado: {}'.format(
-                         fila['price'],
-                         fila['date'],
-                         fila['bedrooms'],
-                         fila['bathrooms'],
-                         fila['yr_built'], 
-                         fila['sqft_living'], 
-                         fila['price/sqft'])
-          ).add_to(markercluster)
-     folium_static(mapa)
+geolocator = Nominatim(user_agent="Jenny Fuquen")
+reverse = partial(geolocator.reverse, language="es")
+st.write(reverse(mapa.location))
 
 
 # Estadística Descriptiva 
@@ -313,9 +276,10 @@ with col2:
           fig = fig.figure
           st.pyplot(fig)
           
-with yr_renovated:
+yr_built, continent_col, log_x_col = st.columns([5, 5, 5])
+with year_col:
     yr_built = st.slider(
-        "Año de construccion?",
+        "What year would you like to examine?",
         min_value=1900,
         max_value=2007,
         step=5,
@@ -324,11 +288,12 @@ with yr_renovated:
 with continent_col:
     continent_choice = st.selectbox(
         "What continent would you like to look at?",
-        ("Price", "bedrooms", "bathrooms", "floors", "waterfront", "sqft_living"),
+        ("All", "Asia", "Europe", "Africa", "Americas", "Oceania"),
     )
-
+with log_x_col:
+    log_x_choice = st.checkbox("Log X Axis?")
 # -- Read in the data
-data = pd.read_csv('kc_house_data.csv')
+df = px.data.gapminder()
 # -- Apply the year filter given by the user
 filtered_df = df[(df.year == year_choice)]
 # -- Apply the continent filter
@@ -345,9 +310,6 @@ fig = px.scatter(
     log_x=log_x_choice,
     size_max=60,
 )
-fig.update_layout(title="Price vs. floors")
+fig.update_layout(title="GDP per Capita vs. Life Expectancy")
 # -- Input the Plotly chart to the Streamlit interface
 st.plotly_chart(fig, use_container_width=True)
-
-
-
