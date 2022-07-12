@@ -313,7 +313,6 @@ with col2:
           fig = fig.figure
           st.pyplot(fig)
           
- year_col, continent_col, log_x_col = st.columns([5, 5, 5])
 with year_col:
     year_choice = st.slider(
         "Año de construccion?",
