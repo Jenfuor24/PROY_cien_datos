@@ -313,8 +313,8 @@ with col2:
           fig = fig.figure
           st.pyplot(fig)
           
-with year_col:
-    year_choice = st.slider(
+with yr_renovated:
+    yr_built = st.slider(
         "Año de construccion?",
         min_value=1900,
         max_value=2007,
