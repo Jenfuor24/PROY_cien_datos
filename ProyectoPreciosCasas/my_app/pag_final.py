@@ -226,28 +226,27 @@ with col2:
 
 col1, col2 = st.columns(2)
 with col1:
-     st.header("Costo de pie cuadrado por código postal")
-     data_aux = data[['price/sqft','zipcode']].groupby('zipcode').mean().reset_index()
-     custom_scale = (data_aux['price/sqft'].quantile((0,0.2,0.4,0.6,0.8,1))).tolist()
+    params = get_params()
+    data2 = data.copy()
+    for filtro in OptFiltro:
+        if filtro in params:
+            (llave, variable) = params[filtro]
+            data2 = data2[data2[llave]==variable]
 
-     mapa = folium.Map(location=[data['lat'].mean(), data['long'].mean()], zoom_start=8)
-     folium.Choropleth(geo_data=url2, 
-                    data=data_aux,
-                    key_on='feature.properties.ZIPCODE',
-                    columns=['zipcode', 'price/sqft'],
-                    threshold_scale=custom_scale,
-                    fill_color='YlOrRd',
-                    highlight=True).add_to(mapa)
-     folium_static(mapa)
-
-with col2: 
-     st.header("Ubicación y detalles de casas disponibles")
-     mapa = folium.Map(location=[data['lat'].mean(), data['long'].mean()], zoom_start=9)
-     markercluster = MarkerCluster().add_to(mapa)
-     for nombre, fila in data.iterrows():
-          folium.Marker([fila['lat'],fila['long']],
-                         popup = 'Precio: ${}, \n Fecha: {} \n {} habitaciones \n {} baños \n constuida en {} \n área de {} pies cuadrados \n Precio por pie cuadrado: {}'.format(
-                         fila['price'],
+    data2['zipcode'] = data2['zipcode'].astype(str)
+    data2['price/sqft'] = data2['price']/data2['sqft_living']
+    
+    data2 = data2[data2.bathrooms==Bathrooms]
+    data2 = data2[data2.bedrooms==Bedrooms]
+    data2 = data2[data2.waterfront==Waterfront]
+    data2 = data2[data2.floors>=Floors]
+    
+    st.header("Ubicación y detalles de casas disponibles acorde a los requerimientos del cliente.")
+    mapa = folium.Map(location=[latt, longg], zoom_start=9)
+    markercluster = MarkerCluster().add_to(mapa)
+    for nombre, fila in data2.iterrows():
+        folium.Marker([fila['lat'],fila['long']],
+                         popup = 'Fecha: {} \n {} habitaciones \n {} baños \n constuida en {} \n área de {} pies cuadrados \n Precio por pie cuadrado: {}'.format(
                          fila['date'],
                          fila['bedrooms'],
                          fila['bathrooms'],
@@ -255,61 +254,28 @@ with col2:
                          fila['sqft_living'], 
                          fila['price/sqft'])
           ).add_to(markercluster)
-     folium_static(mapa)
-
-
-# Estadística Descriptiva 
-att_num = data.select_dtypes(include = ['int64','float64'])
-media = pd.DataFrame(att_num.apply(np.mean))
-mediana = pd.DataFrame(att_num.apply(np.median))
-std = pd.DataFrame(att_num.apply(np.std))
-maximo = pd.DataFrame(att_num.apply(np.max))
-minimo = pd.DataFrame(att_num.apply(np.min))
-df_EDA = pd.concat([minimo,media,mediana,maximo,std], axis = 1)
-df_EDA.columns = ['Mínimo','Media','Mediana','Máximo','std']
-st.header('Datos descriptivos')
-df_EDA = df_EDA.drop(index =['id', 'lat', 'long','yr_built','yr_renovated'], axis = 0 )
-
-df_EDA.index =['Precio','No. Cuartos', 'No. Baños', 'Área construida (pies cuadrados)', 
-                    'Área del terreno (pies cuadrados)', 'No. pisos', 'Vista agua (dummy)',
-                    'Puntaje de la vista', 'Condición','Evaluación propiedad (1-13)',
-                    'Área sobre tierra', 'Área sótano', 'Área construída 15 casas más próximas', 
-                    'Área del terreno 15 casas más próximas', 'Precio por pie cuadrado']
-col1, col2 = st.columns(2)
-col1.metric("No. Casas", data.shape[0],str(100*round(data.shape[0]/data_ref.shape[0],4))+'% de las casas disponibles',delta_color="off")
-col2.metric("No. Casas Nuevas (Construida después de 1990)",data[data['house_age'] == 'new_house'].shape[0],str(100*round(data[data['house_age'] == 'new_house'].shape[0]/data_ref.shape[0],4))+'% de las casas disponibles',delta_color="off")
-st.dataframe(df_EDA)  
-
-st.header('Algunas tendencias')
-
+    folium_static(mapa)
 
 col1, col2 = st.columns(2)
+# col1 = st.columns([1])
 with col1: 
-     st.write('Evolución del precio por tipo de propiedad y año de construcción')
-     data['dormitory_type']=data['bedrooms'].apply(lambda x: 'Estudio' if x <=1 else 'Apartamento' if x==2 else 'Casa' )
-     df = data[['yr_built', 'price','dormitory_type']].groupby(['yr_built','dormitory_type']).mean().reset_index()
-     with sns.axes_style("darkgrid"):
-          plt.style.use('dark_background')
-          fig = plt.figure(figsize=(7,7)) # try different values
-          fig = sns.lineplot(x ='yr_built', y= 'price', data = df, hue="dormitory_type", style="dormitory_type")
-          fig.set_xlabel("Año de Construcción", fontsize = 17)
-          fig.set_ylabel("Precio (Millones de Dólares)", fontsize = 17)
-          fig.legend(title='Tipo de propiedad', loc='upper right', labels=['Apartamento', 'Casa','Estudio'])
-          fig = fig.figure
-          st.pyplot(fig)
-
-
-with col2: 
-     st.write('Evolución del precio por pie cuadrado por tipo de propiedad y año de construcción')
-     df = data[['yr_built', 'price/sqft','dormitory_type']].groupby(['yr_built','dormitory_type']).mean().reset_index()
-     with sns.axes_style("darkgrid"):
-          plt.style.use('dark_background')
-          fig = plt.figure(figsize=(7,7)) # try different values
-          fig = sns.lineplot(x ='yr_built', y= 'price/sqft', data = df, hue="dormitory_type", style="dormitory_type")
-          fig.set_xlabel("Año de Construcción", fontsize = 17)
-          fig.set_ylabel("Precio por pie cuadrado (Dólares)", fontsize = 17)
-          fig.legend(title='Tipo de propiedad', loc='upper right', labels=['Apartamento', 'Casa','Estudio'])
-          fig = fig.figure
-          st.pyplot(fig)
-
-
+    st.write('Evolución del precio por cantidad de habitaciones.')
+    with sns.axes_style("darkgrid"):
+        plt.style.use('dark_background')
+        fig = plt.figure(figsize=(7,7)) # try different values
+        fig = sns.boxplot(x='bedrooms',y='price',data=data,showfliers=False)
+        fig.set_xlabel("Cantidad de Habitaciones", fontsize = 17)
+        fig.set_ylabel("Precio (Millones de Dólares)", fontsize = 17)
+        fig = fig.figure
+        st.pyplot(fig)
+        
+with col2:
+    st.write('Evolución del precio por cantidad de baños.')
+    with sns.axes_style("darkgrid"):
+        plt.style.use('dark_background')
+        fig = plt.figure(figsize=(7,7)) # try different values
+        fig = sns.boxplot(x='bathrooms',y='price',data=data,showfliers=False)
+        fig.set_xlabel("Cantidad de Baños", fontsize = 17)
+        fig.set_ylabel("Precio (Millones de Dólares)", fontsize = 17)
+        fig = fig.figure
+        st.pyplot(fig)
