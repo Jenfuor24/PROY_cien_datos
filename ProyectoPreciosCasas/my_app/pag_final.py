@@ -27,40 +27,44 @@ st.title('Inmobiliaria en King County')
 st.header('Propuesto por Jenny Fuquen ')
 
 
-# @st.cache
-def get_data():
-     url = 'https://raw.githubusercontent.com/Jenfuor24/PROY_cien_datos/main/ProyectoPreciosCasas/data/kc_house_data.csv'
-     return pd.read_csv(url)
-    
 data = get_data()
 data_ref = data.copy()
 
-def slide_data(data):
-    f_zipcode = st.sidebar.multiselect(
-    'Código Postal',
-    data['zipcode'].unique())
+st.sidebar.markdown("# Parámetros")
+data['date'] = pd.to_datetime(data['date'], format = '%Y-%m-%d').dt.date
+data['yr_built']= pd.to_datetime(data['yr_built'], format = '%Y').dt.year
+# data['yr_renovated'] = data['yr_renovated'].apply(lambda x: pd.to_datetime(x, format ='%Y') if x >0 else x )
+# data['id'] = data['id'].astype(str)
 
-    if (f_zipcode !=[]):
-        data = data.loc[data['zipcode'].isin(f_zipcode)]
+#llenar la columna anterior con new_house para fechas anteriores a 2015-01-01
+data['house_age'] = 'NA'
+#llenar la columna anterior con new_house para fechas anteriores a 2015-01-01
+data.loc[data['yr_built']>1990,'house_age'] = 'new_house' 
+#llenar la columna anterior con old_house para fechas anteriores a 2015-01-01
+data.loc[data['yr_built']<1990,'house_age'] = 'old_house'
 
-    elif (f_zipcode != []):
-        data = data.loc[data['zipcode'].isin(f_zipcode), :]
-
-    elif (f_zipcode == []):
-        data = data.loc[:,]
-
-    else:
-        data = data.copy()
+data['zipcode'] = data['zipcode'].astype(str)
 
 
-    col1, col2 = st.columns((1, 1))
+data.loc[data['yr_built']>=1990,'house_age'] = 'new_house' 
+data.loc[data['yr_built']<1990,'house_age'] = 'old_house'
 
-    # Metricas Promedio
-    df1 = data[['id','zipcode']].groupby( 'zipcode' ).count().reset_index()
-    df2 = data[['price','zipcode']].groupby( 'zipcode').mean().reset_index()
-    df3 = data[['sqft_living','zipcode']].groupby( 'zipcode').mean().reset_index()
-    df4 = data[['price_m2','zipcode']].groupby( 'zipcode').mean().reset_index()
+data.loc[data['bedrooms']<=1, 'dormitory_type'] = 'studio'
+data.loc[data['bedrooms']==2, 'dormitory_type'] = 'apartment'
+data.loc[data['bedrooms']>2, 'dormitory_type'] = 'house'
 
+data.loc[data['condition']<=2, 'condition_type'] = 'bad'
+data.loc[data['condition'].isin([3,4]), 'condition_type'] = 'regular'
+data.loc[data['condition']== 5, 'condition_type'] = 'good'
+
+data['price_tier'] = data['price'].apply(lambda x: 'Primer cuartil' if x <= 321950 else
+                                                   'Segundo cuartil' if (x > 321950) & (x <= 450000) else
+                                                   'Tercer cuartil' if (x > 450000) & (x <= 645000) else
+                                                   'Cuarto cuartil')
+
+data['price/sqft'] = data['price']/data['sqft_living']
+
+# st.dataframe(data)
 st.write('Este dashboard tiene por objevito presentar rápida y fácilmente la información derivada del estudio de la dinámica inmobiliaria en King Count, WA (USA). Los datos están disponibles [aquí](https://www.kaggle.com/datasets/harlfoxem/housesalesprediction) ')
 
 
@@ -302,5 +306,3 @@ with col2:
           fig.legend(title='Tipo de propiedad', loc='upper right', labels=['Apartamento', 'Casa','Estudio'])
           fig = fig.figure
           st.pyplot(fig)
-
-
